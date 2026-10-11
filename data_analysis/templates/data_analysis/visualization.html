@@ -1,0 +1,152 @@
+{% extends "data_analysis/base.html" %}
+
+{% block title %}Visualisation{% endblock %}
+{% block breadcrumb %}<span>›</span><span>Pipeline</span><span>›</span><span>Visualisation</span>{% endblock %}
+
+{% block extra_head %}
+  {% if chart_html %}<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">{% include "data_analysis/components/icon.html" with name="pie" %} Étape 5 sur 5</div>
+    <h1>Visualisation</h1>
+    <p>Construisez un graphique interactif à partir d'un fichier nettoyé ou enrichi des sentiments, puis exportez-le pour votre rapport ou votre présentation.</p>
+  </div>
+</div>
+
+<div class="grid grid-sidebar">
+
+  {# ---------- Constructeur ---------- #}
+  {# GET : construire un graphique ne modifie rien ; l'adresse obtenue peut être mise en favori #}
+  <form class="card" method="get">
+    <div class="card-header"><div><h2>Construire un graphique</h2><p>Fichier, type, axes et regroupement</p></div></div>
+    <div class="card-body">
+      <div class="field">
+        <label class="label" for="source">Fichier</label>
+        {# Changer de fichier recharge la page pour proposer ses colonnes #}
+        <select class="select mono" id="source" name="source"
+                onchange="location.search = '?source=' + encodeURIComponent(this.value)">
+          {% for f in fichiers %}
+            <option value="{{ f }}" {% if f == form_data.source %}selected{% endif %}>{{ f }}</option>
+          {% empty %}
+            <option value="" disabled selected>Aucun fichier : passez par les étapes 2 et 4</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <span class="label">Type de graphique</span>
+        <div class="chart-types">
+          {% with ct=form_data.chart_type|default:"bar" %}
+          <label class="chart-type"><input type="radio" name="chart_type" value="bar" {% if ct == "bar" %}checked{% endif %}><span>{% include "data_analysis/components/icon.html" with name="chart" %}Barres</span></label>
+          <label class="chart-type"><input type="radio" name="chart_type" value="line" {% if ct == "line" %}checked{% endif %}><span>{% include "data_analysis/components/icon.html" with name="line" %}Courbe</span></label>
+          <label class="chart-type"><input type="radio" name="chart_type" value="scatter" {% if ct == "scatter" %}checked{% endif %}><span>{% include "data_analysis/components/icon.html" with name="scatter" %}Nuage</span></label>
+          <label class="chart-type"><input type="radio" name="chart_type" value="pie" {% if ct == "pie" %}checked{% endif %}><span>{% include "data_analysis/components/icon.html" with name="pie" %}Secteurs</span></label>
+          <label class="chart-type"><input type="radio" name="chart_type" value="box" {% if ct == "box" %}checked{% endif %}><span>{% include "data_analysis/components/icon.html" with name="box" %}Boîte</span></label>
+          <label class="chart-type"><input type="radio" name="chart_type" value="heatmap" {% if ct == "heatmap" %}checked{% endif %}><span>{% include "data_analysis/components/icon.html" with name="grid" %}Heatmap</span></label>
+          {% endwith %}
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="x">Axe X</label>
+        <select class="select" id="x" name="x">
+          {% for col in columns %}<option value="{{ col }}" {% if col == form_data.x %}selected{% endif %}>{{ col }}</option>
+          {% empty %}<option value="" disabled selected>Aucune colonne disponible</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="y">Axe Y</label>
+        <select class="select" id="y" name="y">
+          <option value="">Effectif (nombre de lignes)</option>
+          {% for col in numeric_columns %}<option value="{{ col }}" {% if col == form_data.y %}selected{% endif %}>{{ col }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="label" for="color">Couleur par</label>
+          <select class="select" id="color" name="color">
+            <option value="">Aucun</option>
+            {% for col in categorical_columns %}<option value="{{ col }}" {% if col == form_data.color %}selected{% endif %}>{{ col }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="agg">Agrégation</label>
+          <select class="select" id="agg" name="agg">
+            <option value="mean" {% if form_data.agg == "mean" %}selected{% endif %}>Moyenne</option>
+            <option value="median" {% if form_data.agg == "median" %}selected{% endif %}>Médiane</option>
+            <option value="sum" {% if form_data.agg == "sum" %}selected{% endif %}>Somme</option>
+            <option value="count" {% if form_data.agg == "count" %}selected{% endif %}>Comptage</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="chart_title">Titre</label>
+        <input class="input" type="text" id="chart_title" name="title" placeholder="Prix médian par genre" value="{{ form_data.title|default:'' }}">
+      </div>
+    </div>
+    <div class="card-footer">
+      <button class="btn btn-primary btn-block" type="submit">
+        {% include "data_analysis/components/icon.html" with name="chart" %} Générer le graphique
+      </button>
+    </div>
+  </form>
+
+  {# ---------- Aperçu ---------- #}
+  <div class="stack">
+    {% if suggestions %}
+      <div class="card card-body">
+        <span class="label">Suggestions</span>
+        <p class="hint" style="margin:4px 0 12px">Des graphiques qui répondent aux questions posées pendant le pipeline : cliquez, puis modifiez-les à gauche.</p>
+        <div class="row">
+          {% for s in suggestions %}
+            <a class="btn btn-secondary btn-sm"
+               href="?source={{ form_data.source|urlencode }}&chart_type={{ s.chart_type }}&x={{ s.x }}&y={{ s.y|default:'' }}&color={{ s.color|default:'' }}&agg={{ s.agg|default:'mean' }}&title={{ s.title|urlencode }}">{{ s.label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header">
+        <div><h2>{{ form_data.title|default:"Aperçu" }}</h2><p>Survolez le graphique pour voir les valeurs</p></div>
+        {% if chart_html %}
+          <div class="row">
+            <button class="btn btn-secondary btn-sm" type="button" onclick="var g=document.querySelector('.chart-canvas .plotly-graph-div'); if(g) Plotly.downloadImage(g,{format:'png',filename:'graphique',width:1400,height:800});">
+              {% include "data_analysis/components/icon.html" with name="download" %} PNG
+            </button>
+          </div>
+        {% endif %}
+      </div>
+      <div class="chart-canvas {% if chart_html %}has-chart{% endif %}">
+        {% if chart_html %}
+          {{ chart_html|safe }}
+        {% else %}
+          {% include "data_analysis/components/empty_state.html" with icon="pie" title="Aucun graphique généré" text="Choisissez un type et des colonnes à gauche, puis cliquez sur « Générer le graphique »." %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if gallery %}
+      <div>
+        <h2 style="margin-bottom:14px">Graphiques enregistrés</h2>
+        <div class="grid grid-2">
+          {% for g in gallery %}
+            <div class="card">
+              <div class="card-header"><h3>{{ g.title }}</h3><span class="badge badge-plain">{{ g.type }}</span></div>
+              <div class="card-body">{{ g.html|safe }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "data_analysis/base.html" %}
+
+{% block title %}Analyse exploratoire{% endblock %}
+{% block breadcrumb %}<span>›</span><span>Pipeline</span><span>›</span><span>Analyse exploratoire</span>{% endblock %}
+
+{% block extra_head %}
+  {% if charts %}<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">{% include "data_analysis/components/icon.html" with name="search" %} Étape 3 sur 5</div>
+    <h1>Analyse exploratoire</h1>
+    <p>Comprendre la structure du jeu de données avant de le modéliser : statistiques, distributions et relations entre variables.</p>
+  </div>
+  {% if overview %}
+    <a class="btn btn-primary" href="{% url 'feeling' %}">
+      Analyser les sentiments {% include "data_analysis/components/icon.html" with name="arrow-right" %}
+    </a>
+  {% endif %}
+</div>
+
+{# ---------- Choix du fichier (GET : l'analyse ne modifie rien) ---------- #}
+<form class="card card-body row" method="get" style="margin-bottom:24px">
+  <label class="label" for="source" style="margin:0">Jeu nettoyé</label>
+  <select class="select mono" id="source" name="source" style="flex:1;min-width:220px" required>
+    {% for nom in fichiers %}
+      <option value="{{ nom }}" {% if nom == source %}selected{% endif %}>{{ nom }}</option>
+    {% empty %}
+      <option value="" disabled selected>Aucun fichier nettoyé : passez d'abord par l'étape 2</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primary" type="submit">
+    {% include "data_analysis/components/icon.html" with name="search" %} Analyser
+  </button>
+</form>
+
+{% if overview %}
+
+  {# ---------- Vue d'ensemble ---------- #}
+  <section class="grid grid-4">
+    <div class="card stat">
+      <div class="stat-top"><span class="stat-label">Observations</span><span class="stat-icon">{% include "data_analysis/components/icon.html" with name="table" %}</span></div>
+      <div class="stat-value">{{ overview.rows }}</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-top"><span class="stat-label">Variables</span><span class="stat-icon">{% include "data_analysis/components/icon.html" with name="layers" %}</span></div>
+      <div class="stat-value">{{ overview.columns }}</div>
+      <div class="stat-meta">{{ overview.numeric }} numériques · {{ overview.categorical }} catégorielles</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-top"><span class="stat-label">Valeurs manquantes</span><span class="stat-icon">{% include "data_analysis/components/icon.html" with name="alert" %}</span></div>
+      <div class="stat-value">{{ overview.missing_pct }} %</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-top"><span class="stat-label">Mémoire</span><span class="stat-icon">{% include "data_analysis/components/icon.html" with name="database" %}</span></div>
+      <div class="stat-value">{{ overview.memory }}</div>
+    </div>
+  </section>
+
+  {# ---------- Onglets ---------- #}
+  <section class="card mt-3">
+    <div class="tabs" role="tablist" data-tabs>
+      <button class="tab is-active" type="button" role="tab" data-tab="tab-stats" aria-selected="true">Statistiques descriptives</button>
+      <button class="tab" type="button" role="tab" data-tab="tab-missing" aria-selected="false">Valeurs manquantes</button>
+      <button class="tab" type="button" role="tab" data-tab="tab-charts" aria-selected="false">Distributions et corrélations</button>
+    </div>
+
+    <div class="tab-panel" id="tab-stats" role="tabpanel">
+      {% if describe %}
+        {% include "data_analysis/components/data_table.html" with columns=describe.columns rows=describe.rows %}
+      {% else %}
+        {% include "data_analysis/components/empty_state.html" with icon="table" title="Aucune variable numérique" %}
+      {% endif %}
+    </div>
+
+    <div class="tab-panel" id="tab-missing" role="tabpanel" hidden>
+      {% if missing %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Variable</th><th class="num">Manquantes</th><th style="width:45%">Proportion</th></tr></thead>
+            <tbody>
+              {% for m in missing %}
+                <tr>
+                  <td><strong>{{ m.name }}</strong></td>
+                  <td class="num">{{ m.count }}</td>
+                  <td>
+                    <div class="row" style="flex-wrap:nowrap">
+                      <div class="meter {% if m.pct > 30 %}meter-danger{% elif m.pct > 5 %}meter-warning{% endif %}" style="flex:1"><span style="width:{{ m.pct }}%"></span></div>
+                      <span class="subtle mono">{{ m.pct }}%</span>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        {% include "data_analysis/components/empty_state.html" with icon="check" title="Aucune valeur manquante" text="Toutes les variables sont complètes." %}
+      {% endif %}
+    </div>
+
+    <div class="tab-panel" id="tab-charts" role="tabpanel" hidden>
+      {% if charts %}
+        <div class="grid grid-2 card-body">
+          {% for chart in charts %}
+            <div class="card">
+              <div class="card-header"><h3>{{ chart.title }}</h3></div>
+              <div class="card-body">{{ chart.html|safe }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        {% include "data_analysis/components/empty_state.html" with icon="chart" title="Aucun graphique" text="Les histogrammes et la matrice de corrélation s'afficheront ici." %}
+      {% endif %}
+    </div>
+  </section>
+
+  {% if insights %}
+    <section class="card mt-3">
+      <div class="card-header"><div><h2>Observations clés</h2><p>Points d'attention détectés automatiquement</p></div></div>
+      <ul class="activity">
+        {% for i in insights %}
+          <li><span class="dot" {% if i.level == "warning" %}style="background:var(--warning)"{% elif i.level == "danger" %}style="background:var(--danger)"{% endif %}></span><div>{{ i.text }}</div></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+{% else %}
+
+  <div class="card">
+    {% include "data_analysis/components/empty_state.html" with icon="search" title="Aucun jeu de données analysé" text="Choisissez un fichier nettoyé ci-dessus et cliquez sur « Analyser ». Pas encore de fichier ? Passez par l'étape 2." %}
+    <div class="row" style="justify-content:center;padding-bottom:40px">
+      <a class="btn btn-primary" href="{% url 'cleaning' %}">{% include "data_analysis/components/icon.html" with name="upload" %} Importer un fichier</a>
+    </div>
+  </div>
+
+{% endif %}
+
+{% endblock %}

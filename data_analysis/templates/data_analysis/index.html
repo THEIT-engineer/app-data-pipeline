@@ -1,0 +1,170 @@
+{% extends "data_analysis/base.html" %}
+
+{% block title %}Tableau de bord{% endblock %}
+{% block breadcrumb %}<span>›</span><span>Tableau de bord</span>{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <div class="hero-grid"></div>
+  <span class="badge badge-plain" style="background:rgba(255,255,255,.1);color:#cdd4f0">Collecte · Nettoyage · Analyse · Visualisation</span>
+  <h1 class="mt-2">Du web brut à des insights exploitables.</h1>
+  <p>Collectez des données en ligne, nettoyez-les, explorez-les, mesurez le sentiment des textes et présentez vos résultats, dans un seul espace de travail.</p>
+  <div class="row">
+    <a class="btn btn-primary" href="{% url 'webscrapping' %}">
+      {% include "data_analysis/components/icon.html" with name="play" %} Lancer une collecte
+    </a>
+    <a class="btn btn-secondary" href="{% url 'cleaning' %}">
+      {% include "data_analysis/components/icon.html" with name="upload" %} Importer un fichier
+    </a>
+  </div>
+</section>
+
+{# ---------- Indicateurs ---------- #}
+<section class="grid grid-4" aria-label="Indicateurs">
+  <div class="card stat">
+    <div class="stat-top">
+      <span class="stat-label">Jeux de données</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="database" %}</span>
+    </div>
+    <div class="stat-value">{{ stats.datasets|default:"0" }}</div>
+    <div class="stat-meta">fichiers importés ou collectés</div>
+  </div>
+  <div class="card stat">
+    <div class="stat-top">
+      <span class="stat-label">Lignes collectées</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="table" %}</span>
+    </div>
+    <div class="stat-value">{{ stats.rows|default:"0" }}</div>
+    <div class="stat-meta">toutes sources confondues</div>
+  </div>
+  <div class="card stat">
+    <div class="stat-top">
+      <span class="stat-label">Qualité des données</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="check" %}</span>
+    </div>
+    <div class="stat-value">{% if stats %}{{ stats.quality }} %{% else %}—{% endif %}</div>
+    <div class="stat-meta">valeurs complètes après nettoyage</div>
+  </div>
+  <div class="card stat">
+    <div class="stat-top">
+      <span class="stat-label">Sentiment moyen</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="smile" %}</span>
+    </div>
+    <div class="stat-value">{% if stats %}{{ stats.sentiment }}{% else %}—{% endif %}</div>
+    <div class="stat-meta">score de −1 (négatif) à +1 (positif)</div>
+  </div>
+</section>
+
+{# ---------- Pipeline ---------- #}
+<section class="mt-3">
+  <div class="row" style="justify-content:space-between;margin-bottom:14px">
+    <div>
+      <h2>Pipeline d'analyse</h2>
+      <p class="subtle">Cinq étapes, de la source à la restitution.</p>
+    </div>
+  </div>
+
+  <div class="pipeline">
+    <a class="card step-card" href="{% url 'webscrapping' %}">
+      <span class="step-num">01</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="globe" %}</span>
+      <h3>Collecte web</h3>
+      <p>Extraire des données de pages web à l'aide de sélecteurs CSS.</p>
+      <span class="step-link">Ouvrir {% include "data_analysis/components/icon.html" with name="arrow-right" %}</span>
+    </a>
+    <a class="card step-card" href="{% url 'cleaning' %}">
+      <span class="step-num">02</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="sparkles" %}</span>
+      <h3>Nettoyage</h3>
+      <p>Doublons, valeurs manquantes, types et normalisation du texte.</p>
+      <span class="step-link">Ouvrir {% include "data_analysis/components/icon.html" with name="arrow-right" %}</span>
+    </a>
+    <a class="card step-card" href="{% url 'aed' %}">
+      <span class="step-num">03</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="search" %}</span>
+      <h3>Analyse exploratoire</h3>
+      <p>Statistiques descriptives, distributions et corrélations.</p>
+      <span class="step-link">Ouvrir {% include "data_analysis/components/icon.html" with name="arrow-right" %}</span>
+    </a>
+    <a class="card step-card" href="{% url 'feeling' %}">
+      <span class="step-num">04</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="smile" %}</span>
+      <h3>Sentiments</h3>
+      <p>Classer des avis et commentaires en positif, neutre ou négatif.</p>
+      <span class="step-link">Ouvrir {% include "data_analysis/components/icon.html" with name="arrow-right" %}</span>
+    </a>
+    <a class="card step-card" href="{% url 'visualization' %}">
+      <span class="step-num">05</span>
+      <span class="stat-icon">{% include "data_analysis/components/icon.html" with name="pie" %}</span>
+      <h3>Visualisation</h3>
+      <p>Construire des graphiques interactifs et les exporter.</p>
+      <span class="step-link">Ouvrir {% include "data_analysis/components/icon.html" with name="arrow-right" %}</span>
+    </a>
+  </div>
+</section>
+
+{# ---------- Activité + jeux de données ---------- #}
+<section class="grid grid-2 mt-3">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2>Activité récente</h2>
+        <p>Dernières opérations effectuées</p>
+      </div>
+    </div>
+    {% if activities %}
+      <ul class="activity">
+        {% for a in activities %}
+          <li>
+            <span class="dot"></span>
+            <div>
+              <strong>{{ a.title }}</strong>
+              <div class="subtle">{{ a.detail }}</div>
+            </div>
+            <span class="time">{{ a.date|timesince }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {% include "data_analysis/components/empty_state.html" with icon="clock" title="Aucune activité pour l'instant" text="Vos collectes, nettoyages et analyses apparaîtront ici." %}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2>Jeux de données</h2>
+        <p>Fichiers disponibles pour l'analyse</p>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="{% url 'cleaning' %}">
+        {% include "data_analysis/components/icon.html" with name="upload" %} Importer
+      </a>
+    </div>
+    {% if datasets %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Nom</th><th class="num">Lignes</th><th class="num">Colonnes</th><th>Statut</th></tr></thead>
+          <tbody>
+            {% for d in datasets %}
+              <tr>
+                <td><strong>{{ d.name }}</strong></td>
+                <td class="num">{{ d.rows }}</td>
+                <td class="num">{{ d.columns }}</td>
+                <td>
+                  {% if d.status == "clean" %}<span class="badge badge-success">Nettoyé</span>
+                  {% elif d.status == "raw" %}<span class="badge badge-warning">Brut</span>
+                  {% else %}<span class="badge">{{ d.status }}</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {% include "data_analysis/components/empty_state.html" with icon="database" title="Aucun jeu de données" text="Importez un fichier CSV ou Excel, ou lancez une collecte web pour commencer." %}
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

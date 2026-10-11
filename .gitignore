@@ -1,0 +1,23 @@
+# Secrets : clé Django, mot de passe de la base
+.env
+
+# Documents personnels (rapports Word) et fichiers verrous de Word
+docs/
+~$*
+
+# Données produites par l'application (collectes, fichiers nettoyés, sentiments)
+media/
+
+# Base locale et caches Python
+db.sqlite3
+__pycache__/
+*.py[cod]
+
+# Script de test personnel
+app.py
+
+# Environnements virtuels et éditeurs
+venv/
+.venv/
+.vscode/
+.idea/

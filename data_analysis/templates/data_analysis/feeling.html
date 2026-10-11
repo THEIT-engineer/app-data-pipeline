@@ -1,0 +1,162 @@
+{% extends "data_analysis/base.html" %}
+
+{% block title %}Analyse de sentiments{% endblock %}
+{% block breadcrumb %}<span>›</span><span>Pipeline</span><span>›</span><span>Analyse de sentiments</span>{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">{% include "data_analysis/components/icon.html" with name="smile" %} Étape 4 sur 5</div>
+    <h1>Analyse de sentiments</h1>
+    <p>Mesurez la tonalité des textes d'un jeu nettoyé (ou d'un texte saisi) : du plus négatif (−1) au plus positif (+1).</p>
+  </div>
+  {% if summary %}
+    <a class="btn btn-primary" href="{% url 'visualization' %}">
+      Visualiser les résultats {% include "data_analysis/components/icon.html" with name="arrow-right" %}
+    </a>
+  {% endif %}
+</div>
+
+<div class="grid grid-sidebar">
+
+  {# ---------- Paramètres ---------- #}
+  <form class="card" method="post" data-loading="Analyse en cours…">
+    {% csrf_token %}
+    <div class="card-header">
+      <div><h2>Paramètres</h2><p>Source du texte et modèle</p></div>
+    </div>
+
+    <div class="tabs" role="tablist" data-tabs>
+      <button class="tab {% if onglet != 'texte' %}is-active{% endif %}" type="button" role="tab" data-tab="src-column">Colonne d'un fichier</button>
+      <button class="tab {% if onglet == 'texte' %}is-active{% endif %}" type="button" role="tab" data-tab="src-text">Texte libre</button>
+    </div>
+
+    <div class="card-body">
+      {# Chaque onglet a son propre bouton : la valeur de "action" dit à la vue quel mode utiliser #}
+      <div class="tab-panel" id="src-column" role="tabpanel" {% if onglet == 'texte' %}hidden{% endif %}>
+        <div class="field">
+          <label class="label" for="source">Fichier nettoyé</label>
+          <select class="select mono" id="source" name="source">
+            {% for nom in fichiers %}
+              <option value="{{ nom }}" {% if nom == source %}selected{% endif %}>{{ nom }}</option>
+            {% empty %}
+              <option value="" disabled selected>Aucun fichier nettoyé : passez par l'étape 2</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="text_column">Colonne de texte</label>
+          <select class="select" id="text_column" name="text_column">
+            {% for col in text_columns %}
+              <option value="{{ col }}" {% if col == form_data.text_column %}selected{% endif %}>{{ col }}</option>
+            {% empty %}
+              <option value="" disabled selected>Aucune colonne de texte</option>
+            {% endfor %}
+          </select>
+          <span class="hint">Colonnes du fichier sélectionné au chargement de la page.</span>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" name="action" value="colonne">
+          {% include "data_analysis/components/icon.html" with name="play" %} Analyser la colonne
+        </button>
+      </div>
+
+      <div class="tab-panel" id="src-text" role="tabpanel" {% if onglet != 'texte' %}hidden{% endif %}>
+        <div class="field">
+          <label class="label" for="text">Textes à analyser (en anglais)</label>
+          <textarea class="textarea" id="text" name="text" placeholder="This book is excellent!&#10;This book is not excellent.">{{ form_data.text }}</textarea>
+          <span class="hint">Un texte par ligne. Idéal pour tester le comportement du modèle.</span>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" name="action" value="texte">
+          {% include "data_analysis/components/icon.html" with name="play" %} Analyser le texte
+        </button>
+      </div>
+
+      <hr class="divider">
+      <dl class="kv">
+        <dt>Modèle</dt><dd>VADER (lexique)</dd>
+        <dt>Langue</dt><dd>anglais, détectée automatiquement</dd>
+        <dt>Seuils</dt><dd>≥ +0,05 positif · ≤ −0,05 négatif</dd>
+      </dl>
+    </div>
+  </form>
+
+  {# ---------- Résultats ---------- #}
+  <div class="stack">
+    {% if summary %}
+      <div class="grid grid-3">
+        <div class="card stat">
+          <div class="stat-top"><span class="stat-label">Positifs</span><span class="badge badge-success">{{ summary.positive_pct }} %</span></div>
+          <div class="stat-value">{{ summary.positive }}</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-top"><span class="stat-label">Neutres</span><span class="badge">{{ summary.neutral_pct }} %</span></div>
+          <div class="stat-value">{{ summary.neutral }}</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-top"><span class="stat-label">Négatifs</span><span class="badge badge-danger">{{ summary.negative_pct }} %</span></div>
+          <div class="stat-value">{{ summary.negative }}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Répartition</h2>
+            <p>{{ summary.total }} textes analysés · score médian {{ summary.median_score }} · moyen {{ summary.mean_score }}
+              {% if summary.ignored %} · {{ summary.ignored }} ignoré{{ summary.ignored|pluralize }} (autre langue){% endif %}
+              {% if summary.missing %} · {{ summary.missing }} vide{{ summary.missing|pluralize }}{% endif %}</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="sentiment-bar" role="img" aria-label="{{ summary.positive_pct }} % positifs, {{ summary.neutral_pct }} % neutres, {{ summary.negative_pct }} % négatifs">
+            <span class="s-pos" style="width:{{ summary.positive_pct }}%"></span>
+            <span class="s-neu" style="width:{{ summary.neutral_pct }}%"></span>
+            <span class="s-neg" style="width:{{ summary.negative_pct }}%"></span>
+          </div>
+          <div class="legend mt-2">
+            <span><i class="s-pos"></i>Positif</span>
+            <span><i class="s-neu"></i>Neutre</span>
+            <span><i class="s-neg"></i>Négatif</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header">
+        <div><h2>Détail par texte</h2><p>{% if results %}{{ results|length }} résultats{% else %}Les résultats s'afficheront ici{% endif %}</p></div>
+        {% if download_url %}
+          <a class="btn btn-secondary btn-sm" href="{{ download_url }}">{% include "data_analysis/components/icon.html" with name="download" %} Exporter</a>
+        {% endif %}
+      </div>
+      {% if results %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Texte</th><th>Sentiment</th><th class="num">Score</th><th>Pourquoi ? (mots les plus forts)</th></tr></thead>
+            <tbody>
+              {% for r in results %}
+                <tr>
+                  <td class="truncate" title="{{ r.text }}" style="max-width:280px">{{ r.text|default:"—" }}</td>
+                  <td>
+                    {% if r.label == "positive" %}<span class="badge badge-success">Positif</span>
+                    {% elif r.label == "negative" %}<span class="badge badge-danger">Négatif</span>
+                    {% elif r.label == "neutral" %}<span class="badge">Neutre</span>
+                    {% elif r.label == "ignored" %}<span class="badge badge-warning">Ignoré ({{ r.lang|default:"?" }})</span>
+                    {% else %}<span class="badge badge-plain">Vide</span>{% endif %}
+                  </td>
+                  <td class="num">{% if r.score is not None %}{{ r.score|floatformat:2 }}{% else %}—{% endif %}</td>
+                  <td class="mono subtle">{{ r.mots|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        {% include "data_analysis/components/empty_state.html" with icon="message" title="Aucune analyse effectuée" text="Choisissez une colonne de texte ou saisissez un texte, puis lancez l'analyse." %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

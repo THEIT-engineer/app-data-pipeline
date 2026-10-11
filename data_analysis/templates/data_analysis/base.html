@@ -1,0 +1,113 @@
+{% load static %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Tableau de bord{% endblock %} · App Data</title>
+  <meta name="description" content="{% block description %}Plateforme d'analyse de données : collecte, nettoyage, exploration, analyse de sentiments et visualisation.{% endblock %}">
+
+  {# Applique le thème avant l'affichage pour éviter un flash blanc #}
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("appdata-theme"); } catch (e) {}
+      if (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
+      document.documentElement.setAttribute("data-theme", t || "light");
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'data_analysis/css/app.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+{% with current=request.resolver_match.url_name %}
+<div class="app">
+
+  {# ---------- Barre latérale ---------- #}
+  <aside class="sidebar" aria-label="Navigation principale">
+    <a class="brand" href="{% url 'index' %}">
+      <span class="brand-mark">{% include "data_analysis/components/icon.html" with name="logo" %}</span>
+      <span>
+        <span class="brand-name">App Data</span>
+        <span class="brand-sub">Analyse de données</span>
+      </span>
+    </a>
+
+    <nav class="nav">
+      <a class="nav-link {% if current == 'index' %}is-active{% endif %}" href="{% url 'index' %}">
+        {% include "data_analysis/components/icon.html" with name="home" %} Tableau de bord
+      </a>
+
+      <div class="nav-label">Pipeline</div>
+      <a class="nav-link {% if current == 'webscrapping' %}is-active{% endif %}" href="{% url 'webscrapping' %}">
+        <span class="nav-step">1</span> Collecte web
+      </a>
+      <a class="nav-link {% if current == 'cleaning' %}is-active{% endif %}" href="{% url 'cleaning' %}">
+        <span class="nav-step">2</span> Nettoyage
+      </a>
+      <a class="nav-link {% if current == 'aed' %}is-active{% endif %}" href="{% url 'aed' %}">
+        <span class="nav-step">3</span> Analyse exploratoire
+      </a>
+      <a class="nav-link {% if current == 'feeling' %}is-active{% endif %}" href="{% url 'feeling' %}">
+        <span class="nav-step">4</span> Analyse de sentiments
+      </a>
+      <a class="nav-link {% if current == 'visualization' %}is-active{% endif %}" href="{% url 'visualization' %}">
+        <span class="nav-step">5</span> Visualisation
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <strong>Jeu de données actif</strong>
+      {% if dataset_name %}<span class="mono">{{ dataset_name }}</span>{% else %}Aucun fichier chargé{% endif %}
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" data-sidebar-toggle></div>
+
+  {# ---------- Contenu ---------- #}
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-ghost btn-icon menu-toggle" type="button" data-sidebar-toggle aria-label="Ouvrir le menu">
+        {% include "data_analysis/components/icon.html" with name="menu" %}
+      </button>
+
+      <nav class="breadcrumb" aria-label="Fil d'Ariane">
+        <a href="{% url 'index' %}">Accueil</a>
+        {% block breadcrumb %}{% endblock %}
+      </nav>
+
+      <div class="topbar-actions">
+        {% block topbar_actions %}{% endblock %}
+        <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Changer de thème" title="Thème clair / sombre">
+          {% include "data_analysis/components/icon.html" with name="moon" %}
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags|default:'info' }}" role="status">
+            {% include "data_analysis/components/icon.html" with name="info" %}
+            <div>{{ message }}</div>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+      <span>© {% now "Y" %} App Data — Pipeline d'analyse de données</span>
+      <span>Django · pandas · Plotly</span>
+    </footer>
+  </div>
+</div>
+{% endwith %}
+
+<script src="{% static 'data_analysis/js/app.js' %}" defer></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

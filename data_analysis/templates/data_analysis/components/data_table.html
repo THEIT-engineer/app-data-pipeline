@@ -1,0 +1,19 @@
+{% comment %}
+Tableau de données générique.
+Usage : {% include "data_analysis/components/data_table.html" with columns=columns rows=rows %}
+  columns : liste de noms de colonnes
+  rows    : liste de listes (une liste de valeurs par ligne)
+Astuce : depuis pandas → columns=list(df.columns), rows=df.head(50).values.tolist()
+{% endcomment %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>{% for col in columns %}<th scope="col">{{ col }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>{% for cell in row %}<td class="truncate" title="{{ cell }}">{{ cell|default_if_none:"—" }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

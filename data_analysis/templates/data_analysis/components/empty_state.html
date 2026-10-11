@@ -1,0 +1,9 @@
+{% comment %}
+État vide réutilisable.
+Usage : {% include "data_analysis/components/empty_state.html" with icon="table" title="…" text="…" %}
+{% endcomment %}
+<div class="empty">
+  <div class="empty-icon">{% include "data_analysis/components/icon.html" with name=icon|default:"database" %}</div>
+  <h3>{{ title }}</h3>
+  {% if text %}<p>{{ text }}</p>{% endif %}
+</div>

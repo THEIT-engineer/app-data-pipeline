@@ -1,0 +1,145 @@
+{% extends "data_analysis/base.html" %}
+
+{% block title %}Collecte web{% endblock %}
+{% block breadcrumb %}<span>›</span><span>Pipeline</span><span>›</span><span>Collecte web</span>{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">{% include "data_analysis/components/icon.html" with name="globe" %} Étape 1 sur 5</div>
+    <h1>Collecte web</h1>
+    <p>Indiquez une page et les éléments HTML à extraire. Le résultat est enregistré comme jeu de données, prêt pour le nettoyage.</p>
+  </div>
+  {% if rows %}
+    <a class="btn btn-primary" href="{% url 'cleaning' %}">
+      Passer au nettoyage {% include "data_analysis/components/icon.html" with name="arrow-right" %}
+    </a>
+  {% endif %}
+</div>
+
+<div class="grid grid-sidebar">
+
+  {# ---------- Configuration ---------- #}
+  <form class="card" method="post" data-loading="Collecte en cours…">
+    {% csrf_token %}
+    <div class="card-header">
+      <div>
+        <h2>Configuration</h2>
+        <p>Source et règles d'extraction</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="field">
+        <label class="label" for="url">URL de la page</label>
+        <input class="input" type="url" id="url" name="url" placeholder="https://exemple.com/produits" value="{{ form_data.url|default:'' }}" required>
+      </div>
+
+      <div class="field">
+        <label class="label" for="container">Sélecteur d'un élément</label>
+        <input class="input mono" type="text" id="container" name="container" placeholder="div.product-card" value="{{ form_data.container|default:'' }}">
+        <span class="hint">Bloc HTML répété pour chaque ligne (une carte produit, un avis…).</span>
+      </div>
+
+      <div class="field">
+        <label class="label" for="fields">Champs à extraire</label>
+        <textarea class="textarea mono" id="fields" name="fields" rows="5" placeholder="titre: h2.title&#10;prix: span.price&#10;note: .rating@data-value&#10;avis: p.review">{{ form_data.fields|default:'' }}</textarea>
+        <span class="hint">Une ligne par colonne : <code>nom: sélecteur</code>. Ajoutez <code>@attribut</code> pour lire un attribut.</span>
+      </div>
+
+      <div class="field">
+        <label class="label" for="next">Sélecteur du lien « page suivante »</label>
+        <input class="input mono" type="text" id="next" name="next" placeholder="li.next a" value="{{ form_data.next|default:'' }}">
+        <span class="hint">Laissez vide pour ne lire qu'une seule page.</span>
+      </div>
+
+      <hr class="divider">
+      <span class="label">Pages de détail (facultatif)</span>
+      <p class="hint" style="margin:4px 0 12px">Ouvre le lien de chaque élément pour y lire d'autres informations. Une requête de plus par élément : limité à 200 éléments.</p>
+
+      <div class="field">
+        <label class="label" for="detail_link">Colonne contenant le lien</label>
+        <input class="input mono" type="text" id="detail_link" name="detail_link" placeholder="lien" value="{{ form_data.detail_link|default:'' }}">
+        <span class="hint">Nom d'un des champs ci-dessus, extrait avec <code>@href</code>.</span>
+      </div>
+
+      <div class="field">
+        <label class="label" for="detail_fields">Champs à extraire sur la page de détail</label>
+        <textarea class="textarea mono" id="detail_fields" name="detail_fields" rows="3" placeholder="categorie: ul.breadcrumb li:nth-of-type(3) a&#10;description: #product_description + p">{{ form_data.detail_fields|default:'' }}</textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="label" for="pages">Pages</label>
+          <input class="input" type="number" id="pages" name="pages" min="1" max="100" value="{{ form_data.pages|default:'1' }}">
+        </div>
+        <div class="field">
+          <label class="label" for="delay">Délai (s)</label>
+          <input class="input" type="number" id="delay" name="delay" min="0" step="0.5" value="{{ form_data.delay|default:'1' }}">
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label">Format d'export</span>
+        <div class="segmented" role="radiogroup">
+          <label><input type="radio" name="format" value="csv" checked><span>CSV</span></label>
+          <label><input type="radio" name="format" value="xlsx"><span>Excel</span></label>
+          <label><input type="radio" name="format" value="json"><span>JSON</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <button class="btn btn-ghost" type="reset">Réinitialiser</button>
+      <button class="btn btn-primary" type="submit">
+        {% include "data_analysis/components/icon.html" with name="play" %} Lancer la collecte
+      </button>
+    </div>
+  </form>
+
+  {# ---------- Résultats ---------- #}
+  <div class="stack">
+    <div class="grid grid-3">
+      <div class="card stat">
+        <span class="stat-label">Lignes extraites</span>
+        <div class="stat-value">{{ scrape.rows|default:"0" }}</div>
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Pages parcourues</span>
+        <div class="stat-value">{{ scrape.pages|default:"0" }}</div>
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Durée</span>
+        <div class="stat-value">{% if scrape.duration %}{{ scrape.duration }} s{% else %}—{% endif %}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Aperçu des données</h2>
+          <p>{% if rows %}{{ rows|length }} premières lignes{% else %}Les résultats s'afficheront ici{% endif %}</p>
+        </div>
+        {% if download_url %}
+          <a class="btn btn-secondary btn-sm" href="{{ download_url }}">
+            {% include "data_analysis/components/icon.html" with name="download" %} Télécharger
+          </a>
+        {% endif %}
+      </div>
+      {% if rows %}
+        {% include "data_analysis/components/data_table.html" with columns=columns rows=rows %}
+      {% else %}
+        {% include "data_analysis/components/empty_state.html" with icon="globe" title="Aucune donnée collectée" text="Renseignez l'URL et les sélecteurs, puis lancez la collecte. Vérifiez que le site autorise l'extraction (robots.txt, conditions d'utilisation)." %}
+      {% endif %}
+    </div>
+
+    {% if logs %}
+      <div class="card">
+        <div class="card-header"><h2>Journal d'exécution</h2></div>
+        <pre class="log">{% for line in logs %}<span class="{{ line.level }}">{{ line.text }}</span>
+{% endfor %}</pre>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

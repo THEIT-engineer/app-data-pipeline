@@ -1,0 +1,166 @@
+{% extends "data_analysis/base.html" %}
+
+{% block title %}Nettoyage{% endblock %}
+{% block breadcrumb %}<span>›</span><span>Pipeline</span><span>›</span><span>Nettoyage</span>{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">{% include "data_analysis/components/icon.html" with name="sparkles" %} Étape 2 sur 5</div>
+    <h1>Nettoyage des données</h1>
+    <p>Chargez une collecte, choisissez une opération pour chaque colonne et comparez le résultat avant et après.</p>
+  </div>
+  {% if after %}
+    <a class="btn btn-primary" href="{% url 'aed' %}">
+      Passer à l'exploration {% include "data_analysis/components/icon.html" with name="arrow-right" %}
+    </a>
+  {% endif %}
+</div>
+
+<div class="grid grid-sidebar">
+
+  {# ---------- Import + opérations ---------- #}
+  <form class="card" method="post" data-loading="Nettoyage en cours…">
+    {% csrf_token %}
+    <div class="card-header">
+      <div>
+        <h2>Source et traitements</h2>
+        <p>Un fichier produit par l'étape Collecte</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="field">
+        <label class="label" for="source">Jeu de données à nettoyer</label>
+        <select class="select mono" id="source" name="source" required>
+          {% for nom in collectes %}
+            <option value="{{ nom }}" {% if nom == source %}selected{% endif %}>{{ nom }}</option>
+          {% empty %}
+            <option value="" disabled selected>Aucune collecte : passez d'abord par l'étape 1</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if colonnes_form %}
+        <hr class="divider">
+
+        <label class="check">
+          <input type="checkbox" name="doublons" {% if doublons_coche %}checked{% endif %}>
+          <div><strong>Supprimer les doublons</strong><span>Lignes strictement identiques</span></div>
+        </label>
+
+        <span class="label">Opération par colonne</span>
+        <p class="hint" style="margin:4px 0 12px">Nouveau nom facultatif (ex. <code>stock.1</code> → <code>quantite</code>).</p>
+        {% for c in colonnes_form %}
+          <div class="field">
+            <label class="label mono" for="op_{{ forloop.counter }}">{{ c.name }}</label>
+            <div class="field-row" style="margin-bottom:0">
+              <select class="select" id="op_{{ forloop.counter }}" name="op_{{ c.name }}">
+                <option value="garder" {% if c.op == "garder" %}selected{% endif %}>Garder tel quel</option>
+                <option value="texte" {% if c.op == "texte" %}selected{% endif %}>Texte nettoyé</option>
+                <option value="nombre" {% if c.op == "nombre" %}selected{% endif %}>Nombre (extrait)</option>
+                <option value="note" {% if c.op == "note" %}selected{% endif %}>Note en mots → 1-5</option>
+                <option value="categorie" {% if c.op == "categorie" %}selected{% endif %}>Catégorie</option>
+                <option value="genre" {% if c.op == "genre" %}selected{% endif %}>Catégorie + genres</option>
+                <option value="supprimer" {% if c.op == "supprimer" %}selected{% endif %}>Supprimer</option>
+              </select>
+              <input class="input mono" type="text" name="nom_{{ c.name }}" placeholder="nouveau nom" value="{{ c.rename }}">
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <div class="card-footer">
+      <button class="btn btn-secondary" type="submit" name="action" value="charger">Charger</button>
+      {% if colonnes_form %}
+        <button class="btn btn-primary" type="submit" name="action" value="appliquer">
+          {% include "data_analysis/components/icon.html" with name="sparkles" %} Appliquer
+        </button>
+      {% endif %}
+    </div>
+  </form>
+
+  {# ---------- Résultats ---------- #}
+  <div class="stack">
+
+    <div class="grid grid-3">
+      <div class="card stat">
+        <span class="stat-label">Lignes</span>
+        <div class="stat-value">{% if after %}{{ after.rows }}{% elif before %}{{ before.rows }}{% else %}—{% endif %}</div>
+        {% if after %}<div class="stat-meta">avant : {{ before.rows }}</div>{% endif %}
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Valeurs manquantes</span>
+        <div class="stat-value">{% if after %}{{ after.missing }}{% elif before %}{{ before.missing }}{% else %}—{% endif %}</div>
+        {% if after %}<div class="stat-meta">avant : {{ before.missing }}</div>{% endif %}
+      </div>
+      <div class="card stat">
+        <span class="stat-label">Doublons</span>
+        <div class="stat-value">{% if after %}{{ after.duplicates }}{% elif before %}{{ before.duplicates }}{% else %}—{% endif %}</div>
+        {% if after %}<div class="stat-meta">avant : {{ before.duplicates }}</div>{% endif %}
+      </div>
+    </div>
+
+    {% if journal %}
+      <div class="card">
+        <div class="card-header"><h2>Journal du nettoyage</h2></div>
+        <pre class="log">{% for ligne in journal %}<span class="ok">✓ {{ ligne }}</span>
+{% endfor %}</pre>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Profil des colonnes</h2>
+          <p>{% if after %}Après nettoyage : type{% else %}Type détecté{% endif %} et taux de complétude</p>
+        </div>
+      </div>
+      {% if column_profile %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Colonne</th><th>Type</th><th class="num">Manquantes</th><th style="width:30%">Complétude</th></tr></thead>
+            <tbody>
+              {% for c in column_profile %}
+                <tr>
+                  <td><strong>{{ c.name }}</strong></td>
+                  <td><span class="badge badge-plain badge-accent mono">{{ c.dtype }}</span></td>
+                  <td class="num">{{ c.missing }}</td>
+                  <td>
+                    <div class="row" style="flex-wrap:nowrap">
+                      <div class="meter {% if c.complete >= 95 %}meter-success{% elif c.complete >= 70 %}meter-warning{% else %}meter-danger{% endif %}" style="flex:1">
+                        <span style="width:{{ c.complete }}%"></span>
+                      </div>
+                      <span class="subtle mono">{{ c.complete }}%</span>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        {% include "data_analysis/components/empty_state.html" with icon="table" title="Aucun fichier chargé" text="Le profil de chaque colonne (type, valeurs manquantes) apparaîtra après l'import." %}
+      {% endif %}
+    </div>
+
+    {% if rows %}
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>{% if after %}Aperçu après nettoyage{% else %}Aperçu des données brutes{% endif %}</h2>
+            <p>{{ rows|length }} premières lignes</p>
+          </div>
+          {% if download_url %}
+            <a class="btn btn-secondary btn-sm" href="{{ download_url }}">
+              {% include "data_analysis/components/icon.html" with name="download" %} Exporter
+            </a>
+          {% endif %}
+        </div>
+        {% include "data_analysis/components/data_table.html" with columns=columns rows=rows %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
